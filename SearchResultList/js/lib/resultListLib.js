@@ -98,6 +98,8 @@ define(['jquery', 'settings', 'jquery_ui', 'jquery_raty'], function($, settings,
       data = data.results || null;
       $widgets.list.empty();
 
+      // 
+      JSON.parse(sessionStorage.getItem("Buttons"));
       if (data === null || data.totalResults === 0 || data.totalResults === '0') {
          $widgets.list.append($('<li>no results</li>'));
           return;
@@ -246,13 +248,64 @@ define(['jquery', 'settings', 'jquery_ui', 'jquery_raty'], function($, settings,
       });
    };
 
-   /*
+   /**
+    * Inserts a new HTML tag + code into
+    */
+   function registerButtonPerResult(data){
+      if(data instanceof Object){
+         if(!(data.hasOwnProperty("node") &&
+            data.hasOwnProperty("html") &&
+            data.hasOwnProperty("responseEvent"))){
+
+            throw new Error("Isufficient parameter." +
+               "The parameters 'node', 'html' and 'responseEvent' are required");
+         }
+         if(typeof data.responseEvent !== "string"){
+            throw new Error("Invalid parameter types passed");
+         }
+         try{
+            var html = $(data.html),
+            node = $(data.node),
+            responseEvent = data.responseEvent;
+         } catch(e){
+            throw new Error("Syntax error. Invalid HTML passed");
+         }
+      }
+      var buttons = sessionStorage.getItem("Buttons");
+      if(buttons === null){
+         sessionStorage.setItem("Buttons", JSON.stringify([{
+               node: node,
+               html: html,
+               responseEvent: responseEvent
+            }]
+         ));
+      } else {
+         buttons = JSON.parse(buttons);
+         for(var i=0; i<buttons.length; i++){
+            if(buttons[i].responseEvent == responseEvent){
+               console.warn("Registering button failed. A button with the response " + 
+                  "Event '" + responseEvent + "' is already registered.");
+            } else {
+               buttons.push({
+                  node: node,
+                  html: html,
+                  responseEvent: data.responseEvent
+               });
+            }
+         }
+      }
+      
+   }
+
+   /**
     * Makes some objects publicly available
     */
    return {
       $widgets: $widgets,
       showResults: showResults,
       showLoadingScreen: showLoadingScreen,
-      showError: showError
+      showError: showError,
+      registerButtonPerResult: registerButtonPerResult,
+      rating: rating
    }
 });
