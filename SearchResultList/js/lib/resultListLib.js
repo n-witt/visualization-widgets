@@ -98,8 +98,6 @@ define(['jquery', 'settings', 'jquery_ui', 'jquery_raty'], function($, settings,
       data = data.results || null;
       $widgets.list.empty();
 
-      // 
-      JSON.parse(sessionStorage.getItem("Buttons"));
       if (data === null || data.totalResults === 0 || data.totalResults === '0') {
          $widgets.list.append($('<li>no results</li>'));
           return;
@@ -162,6 +160,24 @@ define(['jquery', 'settings', 'jquery_ui', 'jquery_raty'], function($, settings,
          rating(raty, item.documentBadge.uri, item.rating);
          li.append(raty);
 
+
+         // custom buttons
+         var buttons = JSON.parse(sessionStorage.getItem("Buttons"));
+         if(Array.isArray(buttons)){
+            for(var j=0; j<buttons.length; j++){
+                var button = $(buttons[j].html);
+                var button = button.attr("data-documentBadge", JSON.stringify(item.documentBadge));
+                button.click(function(){
+                   var documentBadge = JSON.parse($(this).attr("data-documentBadge"));
+                   window.top.postMessage({
+                      event: 'eexcess.citationRequsted',
+                      documentBadge: documentBadge
+                   }, '*');
+                });
+                li.append(button);
+            }
+         }
+
          var containerL = $('<div class="resCtL"></div>');
          li.append(containerL);
          containerL.append(link(item.documentBadge.uri, img, '<img class="eexcess_previewIMG" src="' + img + '" />'));
@@ -202,8 +218,8 @@ define(['jquery', 'settings', 'jquery_ui', 'jquery_raty'], function($, settings,
              var shortDescription = shortenDescription(item.description);
              resCt.append($('<p class="result_description">' + shortDescription + '</p>'));
           }
-          resCt.append($('<p style="clear:both;"></p>'));
 
+          resCt.append($('<p style="clear:both;"></p>'));
       }
       settings.hostTag.find('.eexcess_previewIMG').error(function() {
          $(this).unbind("error").attr("src", settings.pathToMedia + 'no-img.png');
@@ -264,9 +280,8 @@ define(['jquery', 'settings', 'jquery_ui', 'jquery_raty'], function($, settings,
             throw new Error("Invalid parameter types passed");
          }
          try{
-            var html = $(data.html),
-            node = $(data.node),
-            responseEvent = data.responseEvent;
+            $(data.html);
+            $(data.node);
          } catch(e){
             throw new Error("Syntax error. Invalid HTML passed");
          }
@@ -274,21 +289,21 @@ define(['jquery', 'settings', 'jquery_ui', 'jquery_raty'], function($, settings,
       var buttons = sessionStorage.getItem("Buttons");
       if(buttons === null){
          sessionStorage.setItem("Buttons", JSON.stringify([{
-               node: node,
-               html: html,
-               responseEvent: responseEvent
+               node: data.node,
+               html: data.html,
+               responseEvent: data.responseEvent
             }]
          ));
       } else {
          buttons = JSON.parse(buttons);
          for(var i=0; i<buttons.length; i++){
-            if(buttons[i].responseEvent == responseEvent){
+            if(buttons[i].responseEvent == data.responseEvent){
                console.warn("Registering button failed. A button with the response " + 
-                  "Event '" + responseEvent + "' is already registered.");
+                  "Event '" + data.responseEvent + "' is already registered.");
             } else {
                buttons.push({
-                  node: node,
-                  html: html,
+                  node: data.node,
+                  html: data.html,
                   responseEvent: data.responseEvent
                });
             }
