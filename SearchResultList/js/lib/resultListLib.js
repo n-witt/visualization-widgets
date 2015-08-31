@@ -211,11 +211,12 @@ define(['jquery', 'settings', 'jquery_ui', 'jquery_raty'], function($, settings,
                 event = buttons[j].responseEvent;
                 // don't insert the imageCitation button when there is no image
                 if(event == "eexcess.imageCitationRequest" && !items[i].hasOwnProperty("previewImage")){
-                   // Dont insert the button
+                   // don't insert the button
                 } else {
                     button = button.attr("data-documentsMetadata", JSON.stringify(item));
                     button.click(function(){
                         var documentsMetadata = JSON.parse($(this).attr("data-documentsMetadata"));
+                        event = $(this).find("img").attr("data-method");
                         window.top.postMessage({
                             event: event,
                             documentsMetadata: documentsMetadata
