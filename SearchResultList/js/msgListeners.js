@@ -17,4 +17,5 @@ define(['resultListLib'], function(helper){
          }
       }
    };
+   window.top.postMessage({event: "eexcess.msgListenerLoaded"}, '*');
 });

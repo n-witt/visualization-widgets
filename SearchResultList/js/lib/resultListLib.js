@@ -160,24 +160,6 @@ define(['jquery', 'settings', 'jquery_ui', 'jquery_raty'], function($, settings,
          rating(raty, item.documentBadge.uri, item.rating);
          li.append(raty);
 
-
-         // custom buttons
-         var buttons = JSON.parse(sessionStorage.getItem("Buttons"));
-         if(Array.isArray(buttons)){
-            for(var j=0; j<buttons.length; j++){
-                var button = $(buttons[j].html);
-                var button = button.attr("data-documentBadge", JSON.stringify(item.documentBadge));
-                button.click(function(){
-                   var documentBadge = JSON.parse($(this).attr("data-documentBadge"));
-                   window.top.postMessage({
-                      event: 'eexcess.citationRequsted',
-                      documentBadge: documentBadge
-                   }, '*');
-                });
-                li.append(button);
-            }
-         }
-
          var containerL = $('<div class="resCtL"></div>');
          li.append(containerL);
          containerL.append(link(item.documentBadge.uri, img, '<img class="eexcess_previewIMG" src="' + img + '" />'));
@@ -220,6 +202,30 @@ define(['jquery', 'settings', 'jquery_ui', 'jquery_raty'], function($, settings,
           }
 
           resCt.append($('<p style="clear:both;"></p>'));
+
+         // custom buttons
+         var buttons = JSON.parse(sessionStorage.getItem("Buttons"));
+         if(Array.isArray(buttons)){
+            for(var j=0; j<buttons.length; j++){
+                var button = $(buttons[j].html),
+                event = buttons[j].responseEvent;
+                // don't insert the imageCitation button when there is no image
+                if(event == "eexcess.imageCitationRequest" && !items[i].hasOwnProperty("previewImage")){
+                   // Dont insert the button
+                } else {
+                    button = button.attr("data-documentsMetadata", JSON.stringify(item));
+                    button.click(function(){
+                        var documentsMetadata = JSON.parse($(this).attr("data-documentsMetadata"));
+                        window.top.postMessage({
+                            event: event,
+                            documentsMetadata: documentsMetadata
+                        }, '*');
+                    });
+                    li.prepend(button);
+                }
+      
+            }
+         }
       }
       settings.hostTag.find('.eexcess_previewIMG').error(function() {
          $(this).unbind("error").attr("src", settings.pathToMedia + 'no-img.png');
@@ -268,48 +274,52 @@ define(['jquery', 'settings', 'jquery_ui', 'jquery_raty'], function($, settings,
     * Inserts a new HTML tag + code into
     */
    function registerButtonPerResult(data){
+      // checking input data
       if(data instanceof Object){
-         if(!(data.hasOwnProperty("node") &&
-            data.hasOwnProperty("html") &&
+         if(!(data.hasOwnProperty("html") &&
             data.hasOwnProperty("responseEvent"))){
 
             throw new Error("Isufficient parameter." +
-               "The parameters 'node', 'html' and 'responseEvent' are required");
+               "The parameters 'html' and 'responseEvent' are required");
          }
          if(typeof data.responseEvent !== "string"){
             throw new Error("Invalid parameter types passed");
          }
          try{
             $(data.html);
-            $(data.node);
          } catch(e){
             throw new Error("Syntax error. Invalid HTML passed");
          }
       }
+
+      var alreadyRegistered = false;
       var buttons = sessionStorage.getItem("Buttons");
-      if(buttons === null){
-         sessionStorage.setItem("Buttons", JSON.stringify([{
-               node: data.node,
-               html: data.html,
-               responseEvent: data.responseEvent
-            }]
-         ));
-      } else {
+      if(buttons !== null){
          buttons = JSON.parse(buttons);
-         for(var i=0; i<buttons.length; i++){
-            if(buttons[i].responseEvent == data.responseEvent){
-               console.warn("Registering button failed. A button with the response " + 
-                  "Event '" + data.responseEvent + "' is already registered.");
-            } else {
-               buttons.push({
-                  node: data.node,
-                  html: data.html,
-                  responseEvent: data.responseEvent
-               });
+         if(Array.isArray(buttons)){
+            for(var i=0; i<buttons.length; i++){
+               if(buttons[i].responseEvent == data.responseEvent){
+                  alreadyRegistered = true;
+               }
             }
+         } else {
+            throw new Error("Invalid data in SessionCache");
          }
       }
-      
+
+      if(alreadyRegistered){
+         console.warn("Registering button failed. A button with the response " + 
+            "Event '" + data.responseEvent + "' is already registered.");
+      } else {
+         if(buttons == null){
+            buttons = [];
+         }
+         buttons.push({
+            html: data.html,
+            responseEvent: data.responseEvent
+         });
+         sessionStorage.setItem("Buttons", JSON.stringify(buttons));
+      }
    }
 
    /**
