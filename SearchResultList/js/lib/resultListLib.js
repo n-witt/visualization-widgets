@@ -95,17 +95,17 @@ define(['jquery', 'settings', 'jquery_ui', 'jquery_raty'], function($, settings,
       $('#result_gallery').remove();
       $widgets.error.hide();
       $widgets.loader.hide();
-      data = data || null;
-      if(data) {
-          data['results'] = data.result;
-      }
       $widgets.list.empty();
 
       if (data === null || data.totalResults === 0 || data.totalResults === '0') {
          $widgets.list.append($('<li>no results</li>'));
           return;
       }
-      $widgets.list.attr('data-total', data.results.length);
+      if(Array.isArray(data.results.results)){
+         $widgets.list.attr('data-total', data.results.length);
+      } else {
+         throw new Error("Invalid result data received");
+      }
 
       var height = (window.innerHeight || document.body.clientHeight) - 120;
       settings.itemsShown = Math.floor(height / 50);
@@ -128,7 +128,7 @@ define(['jquery', 'settings', 'jquery_ui', 'jquery_raty'], function($, settings,
 
           settings.hostTag.append(_pagination);
       }
-      moreResults(data.results);
+      moreResults(data.results.results);
    };
 
    /**
@@ -334,6 +334,7 @@ define(['jquery', 'settings', 'jquery_ui', 'jquery_raty'], function($, settings,
       showResults: showResults,
       showLoadingScreen: showLoadingScreen,
       showError: showError,
+      registerButtonPerResult: registerButtonPerResult,
       rating:rating
    };
 });
