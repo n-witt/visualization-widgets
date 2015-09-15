@@ -82,7 +82,7 @@ function Timeline( root, visTemplate ){
 				}
 			}
 		});
-		FilterHandler.setCurrentFilterRange('time', dataToHighlight, minDateInYears, maxDateInYears);
+		FilterHandler.setCurrentFilterRange('time', dataToHighlight, minDateInYears, maxDateInYears, yAxisChannel);
 	}
 	
 	TIMEVIS.Evt.brushended = function(){
@@ -99,7 +99,6 @@ function Timeline( root, visTemplate ){
 		var correctedYear = brush.extent()[1];
 		correctedYear === undefined ? correctedYear = x.invert(0).getFullYear() : correctedYear.getFullYear();		
 		TIMEVIS.Evt.filterListPerTime(x.invert(0).getFullYear(), correctedYear.getFullYear());
-		TIMEVIS.Evt.filterListPerTime(x.invert(0).getFullYear(), x.invert(width).getFullYear());
 	};
 	
 
@@ -141,6 +140,16 @@ function Timeline( root, visTemplate ){
 	 * Node click handler
 	 **/
 	TIMEVIS.Evt.nodeClicked = function( d, index, sender ) {
+        TIMEVIS.openDocument(d, index, sender);
+        //TIMEVIS.highlightDocuments(d, index, sender);
+    };
+    
+    TIMEVIS.openDocument = function( d, index, sender ) {
+        var win = window.open(d.uri, '_blank');
+        win.focus();
+    };
+    
+    TIMEVIS.highlightDocuments = function( d, index, sender ) {        
 	
 		kwNodes = [];
 		var links = [];
@@ -198,7 +207,11 @@ function Timeline( root, visTemplate ){
 			currentExtent = Math.abs(new Date(x.invert(width)) - new Date(x.invert(0)));
 		
 			// node colored in red
-			d3.select(this)
+            var circle = d3.select(this);
+            if (circle.node().tagName != 'circle')
+                circle = d3.select(this.parentNode).selectAll('circle'); // if mouse overed on the inner text
+                
+			circle
 				.attr("r", function(d){ 
 					var radius = Geometry.calculateRadius(fullExtent, currentExtent);
 					if(d.isHighlighted)
@@ -209,8 +222,8 @@ function Timeline( root, visTemplate ){
 				.style("stroke-width", "2.5px");					
 
 			// Get current x/y values, then augment for the tooltip
-			var xPosition = parseFloat(d3.select(this).attr("cx")) + 250;//45;
-			var yPosition = parseFloat(d3.select(this).attr("cy")) + 120;//35;
+			var xPosition = parseFloat(circle.attr("cx")) + 250;//45;
+			var yPosition = parseFloat(circle.attr("cy")) + 120;//35;
 	
 			d3.select("#tooltip").remove();
 		
@@ -246,7 +259,11 @@ function Timeline( root, visTemplate ){
 			currentExtent = Math.abs(new Date(x.invert(width)) - new Date(x.invert(0)));
 		
 			// Restore node's fill to original color and radius
-			d3.select(this)
+            var circle = d3.select(this);
+            if (circle.node().tagName != 'circle')
+                circle = d3.select(this.parentNode).selectAll('circle'); // if mouse overed on the inner text
+                
+			circle
 				.attr("r", function(d){ 
 					var radius = Geometry.calculateRadius(fullExtent, currentExtent);
 					if(d.isHighlighted)
@@ -522,10 +539,10 @@ function Timeline( root, visTemplate ){
 			.attr("id", "div-chart");
 	
 		var svg = divchart.append("svg")
-			.attr("class", "svg")
+			.attr("class", "svg timeline")
 			.attr("width", width + focusMargin.left + focusMargin.right)
 			.attr("height", focusHeight + focusMargin.top + focusMargin.bottom);
-	
+            
 	
 		// Add focus and context g components
 		focus = svg.append("g")
@@ -670,7 +687,9 @@ function Timeline( root, visTemplate ){
 		textInCircles = chart.selectAll(".number");
 		
 		textInCircles
-			.on( "click", TIMEVIS.Evt.nodeClicked );
+			.on( "click", TIMEVIS.Evt.nodeClicked )
+			.on( "mouseover", TIMEVIS.Evt.nodeMouseOvered )
+			.on( "mouseout", TIMEVIS.Evt.nodeMouseOuted );
 		//steff experimental code end
 		
 		circles = chart.selectAll(".dot");
@@ -1069,22 +1088,25 @@ function Timeline( root, visTemplate ){
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	TIMEVIS.Ext = {
-		
-		draw : function(initData, mapping, iWidth, iHeight){
-			TIMEVIS.Render.draw(initData, mapping, iWidth, iHeight);
-		},
-		
-		reset : function(){
-			TIMEVIS.Render.reset();
-			TIMEVIS.Render.redraw();
-		},
-		
-		selectNodes : function( indicesToHighlight, sender ){
-			TIMEVIS.Render.selectNodes( indicesToHighlight, sender );
-		}
-			
-	};
+    TIMEVIS.Ext = {
+
+        draw: function (initData, mapping, iWidth, iHeight) {
+            TIMEVIS.Render.draw(initData, mapping, iWidth, iHeight);
+        },
+
+        reset: function () {
+            TIMEVIS.Render.reset();
+            TIMEVIS.Render.redraw();
+        },
+        
+        resetFilter: function () {
+            TIMEVIS.Ext.reset();
+        },
+        
+        selectNodes: function (indicesToHighlight, sender) {
+            TIMEVIS.Render.selectNodes(indicesToHighlight, sender);
+        }
+    };
 
 	
 	return TIMEVIS.Ext;

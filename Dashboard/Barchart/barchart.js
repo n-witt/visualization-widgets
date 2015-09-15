@@ -82,34 +82,33 @@ function Barchart( domRoot, visTemplate ) {
 	/********************************************************************************************************************************
 	 *	Legend events' handlers
 	 * */
-	BARCHART.Evt.legendClicked = function( legendDatum, legendIndex ){
-		
-		BARCHART.Render.HighlightFilteredFacet( legendDatum.item, legendIndex, legendDatum.selected );
-	};
+	// BARCHART.Evt.legendClicked = function( legendDatum, legendIndex ){
+	// 	BARCHART.Render.HighlightFilteredFacet( legendDatum.item, legendIndex, legendDatum.selected );
+	// };
 	
 	
-	BARCHART.Evt.legendMouseOvered = function(d, i){
-
-		d3.select(this).select("div")
-			.style("border", "0.1em yellow solid")
-			.style("width", "1.4em")
-			.style("height", "1.4em");
-		
-		d3.select(this).select("text")
-			.style("font-size", "0.9em");
-	};
-	
-	
-	BARCHART.Evt.legendMouseOuted = function(d, i){
-		
-		d3.select(this).select("div")
-			.style("border", function(){ if(d.selected) return "0.1em lime solid"; return "none"; })
-			.style("width",  function(){ if(d.selected) return "1.4em"; return "1.5em"; })
-			.style("height", function(){ if(d.selected) return "1.4em"; return "1.5em"; });
-		
-		d3.select(this).select("text")
-			.style("font-size", "0.85em");	
-	};
+// 	BARCHART.Evt.legendMouseOvered = function(d, i){
+// 
+// 		d3.select(this).select("div")
+// 			.style("border", "0.1em yellow solid")
+// 			.style("width", "1.4em")
+// 			.style("height", "1.4em");
+// 		
+// 		d3.select(this).select("text")
+// 			.style("font-size", "0.9em");
+// 	};
+// 	
+// 	
+// 	BARCHART.Evt.legendMouseOuted = function(d, i){
+// 		
+// 		d3.select(this).select("div")
+// 			.style("border", function(){ if(d.selected) return "0.1em lime solid"; return "none"; })
+// 			.style("width",  function(){ if(d.selected) return "1.4em"; return "1.5em"; })
+// 			.style("height", function(){ if(d.selected) return "1.4em"; return "1.5em"; });
+// 		
+// 		d3.select(this).select("text")
+// 			.style("font-size", "0.85em");	
+// 	};
 
 	
 		
@@ -119,12 +118,12 @@ function Barchart( domRoot, visTemplate ) {
 	BARCHART.Internal = {};
 
 	BARCHART.Internal.getLegendDomain = function(colorDomain){
-		
 		var legendDomain = [];
 		
 		colorDomain.forEach(function(c, i){
 			legendDomain[i] = { 'item': c, 'selected': false };
 		});
+		
 		return legendDomain;
 	};
 	
@@ -152,8 +151,8 @@ function Barchart( domRoot, visTemplate ) {
 		*	Define canvas dimensions
 		******************************************************/
 		BARCHART.Dimensions = BARCHART.Settings.getDimensions(domRoot, iWidth, iHeight);
-		width          = BARCHART.Dimensions.width;
-		height         = BARCHART.Dimensions.height;
+		width          = BARCHART.Dimensions.width + 100; // 100px for barchart without legends on right side
+		height         = BARCHART.Dimensions.height - 40; // 40px for color selection box on top  
 		margin         = BARCHART.Dimensions.margin;
 		centerOffset   = BARCHART.Dimensions.centerOffset;
 		verticalOffset = BARCHART.Dimensions.verticalOffset;
@@ -251,7 +250,7 @@ function Barchart( domRoot, visTemplate ) {
 		/******************************************************
 		 *	Legends
 		 *****************************************************/	
-		
+		/*
 		legendDomain = BARCHART.Internal.getLegendDomain(color.domain());
 		
 		
@@ -278,7 +277,8 @@ function Barchart( domRoot, visTemplate ) {
 			.attr("y", 9)
 			.attr("dy", ".35em")
 			.style("text-anchor", "end")
-			.text(function(d) { return d.item; });
+			.text(function(d) { return d.item; }); 
+		*/
 
 	};
 	
@@ -354,9 +354,9 @@ function Barchart( domRoot, visTemplate ) {
 		}        		
 		
 		// update legends' and bars' domains
-		legendDomain.forEach(function(l, i){
+		/*legendDomain.forEach(function(l, i){
 			l.selected = (i == facetIndex && !isSelected);
-		});
+		}); */
 		
 		data.forEach(function(d, i){
 			d.selected = (i == facetIndex && !isSelected);
@@ -367,24 +367,26 @@ function Barchart( domRoot, visTemplate ) {
 			// hide non-matching bars
 			bars.transition()
 				.style("opacity", function(d, i){ if(d.selected) return 1; return 0.2; })
-				.duration(500);			
+				.duration(500);		
+				
+			FilterHandler.setCurrentFilterCategories('category', dataToHighlight, colorChannel, [facetValue]);	
 		}
 		else{
 			// restore bars' opacity
 			bars.transition()
 				.style("opacity", 1)
 				.duration(500);
+				
+			FilterHandler.setCurrentFilterCategories('category', dataToHighlight, colorChannel, null);	
 		}		
 
 		// highlight legend selected
-		var legends = d3.selectAll('.legend');
+		/*var legends = d3.selectAll('.legend');
 		legends.select("text")
 			.style("font-weight", function(l, i){ if(l.selected) return "bold"; return "normal"; });
 		
 		legends.select("div")
-			.style("border", function(l, i){ if(l.selected) return "0.1em lime solid"; return "none"; });
-		
-		FilterHandler.setCurrentFilterCategories('category', dataToHighlight, colorChannel, [facetValue]);
+			.style("border", function(l, i){ if(l.selected) return "0.1em lime solid"; return "none"; }); */
 	};
 	
 
@@ -447,7 +449,11 @@ function Barchart( domRoot, visTemplate ) {
 		},
 		
 		reset: function(){ BARCHART.Render.reset( 'animate_bars' );	},
-        
+
+        resetFilter: function () {
+            BARCHART.Render.clearSelection();
+        },
+                
         clearSelection: function(){ BARCHART.Render.clearSelection(); }
 	};
 	

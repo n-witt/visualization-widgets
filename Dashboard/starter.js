@@ -22,13 +22,15 @@ var onDataReceived = function(dataReceived, status) {
     console.log('Globals:');
     console.log(globals);
 
-    globals["data"] = dataReceived.results.results;
-    if (determineDataFormatVersion(dataReceived.results.results) == "v2"){
-        loadEexcessDetails(dataReceived.results.results, function(mergedData){ 
+    globals["data"] = dataReceived.result;
+    if (determineDataFormatVersion(dataReceived.result) == "v2"){
+        loadEexcessDetails(dataReceived.result, function(mergedData){ 
             globals["data"] = mapRecommenderV1toV2(mergedData);
+            extractAndMergeKeywords(globals["data"])
             visTemplate.refresh(globals);
         });
     } else {
+    	extractAndMergeKeywords( globals["data"])
         visTemplate.refresh(globals);
     }
 };
@@ -42,7 +44,7 @@ requestPlugin();
 function requestPlugin() {
 
     var requestVisualization = function(pluginResponse) {
-        if((typeof pluginResponse == "undefined") || pluginResponse.results == null) {
+        if((typeof pluginResponse == "undefined") || pluginResponse.result == null) {
 
             /*  TO USE DUMMY DATA UNCOMMENT THE NEXT 2 LINES AND COMMENT THE NEXT ONE*/
             var dummy = new Dummy();
@@ -88,6 +90,8 @@ function requestPlugin() {
                 //_showError(e.data.data);
             } else if (e.data.event === 'eexcess.rating') {
                 //_rating($('.eexcess_raty[data-uri="' + e.data.data.uri + '"]'), e.data.data.uri, e.data.data.score);
+            } else if (e.data.event === 'eexcess.newDashboardSettings') {
+                visTemplate.updateSettings(e.data.settings);
             }
         }
     };
@@ -276,7 +280,7 @@ function requestPlugin() {
     var detailCallBadges = _.map(data, 'documentBadge');
 
     var detailscall = $.ajax({
-        url: 'http://eexcess-dev.joanneum.at/eexcess-privacy-proxy-1.0-SNAPSHOT/api/v1/getDetails',
+        url: 'https://eexcess-dev.joanneum.at/eexcess-privacy-proxy-1.0-SNAPSHOT/api/v1/getDetails', // = dev
         data: JSON.stringify({ "documentBadge" : detailCallBadges }),
         type: 'POST',
         contentType: 'application/json; charset=UTF-8',
@@ -311,7 +315,7 @@ function requestPlugin() {
 
 function deletedRdf(pluginResponse) {
 
-    pluginResponse.results.results.forEach(function(d){
+    pluginResponse.result.forEach(function(d){
         delete d.rdf;
     });
 
@@ -422,9 +426,7 @@ function getMappings(){
 function getDemoResultsUniversity(){
 
     var demoDataReceived = {
-        results:{
-            results: demoDataUniversity
-        },
+        result: demoDataUniversity,
         query:"University Campus"
     };
     return demoDataReceived;
@@ -434,13 +436,62 @@ function getDemoResultsUniversity(){
 function getDemoResultsHistoricBuildings(){
 
     var demoDataReceived = {
-        results:{
-            results: demoDataHistoricalBuildings
-        },
+        result: demoDataHistoricalBuildings,
         query:"Historical Buildings"
     };
     return demoDataReceived;
 }
+
+
+
+function extractAndMergeKeywords(data) {
+	
+	window.TAG_CATEGORIES = 5;
+
+	//  String Constants
+	window.STR_NO_VIS = "No visualization yet!";
+	window.STR_DROPPED = "Dropped!";
+	window.STR_DROP_TAGS_HERE = "Drop tags here!";
+	window.STR_JUST_RANKED = "new";
+	window.STR_SEARCHING = "Searching...";
+	window.STR_UNDEFINED = 'undefined';
+
+	
+	var keywordExtractorOptions = {
+		minDocFrequency : 1,
+		minRepetitionsInDocument : 2,
+		maxKeywordDistance : 2,
+		minRepetitionsProxKeywords : 2,
+		multiLingualEnabled : true
+	};
+	var multiLingualService = new natural.MultiLingualService;
+	var keywordExtractor = new KeywordExtractor(keywordExtractorOptions);
+	var indexCounter = 0;
+	data.forEach(function(d, i) {
+		d.index = i;
+		if (d.description == null || d.description == 'undefined') {
+			d.description = "";
+		}
+		d.title = d.title.clean();
+		d.description = d.description.clean();
+		var document = (d.description) ? d.title + '. ' + d.description : d.title;
+		d.facets.language = d.facets.language ? d.facets.language : "en"
+		d.facets.languageOrig = d.facets.language; 
+		d.facets.language  = multiLingualService.getTextLanguage(d.text, d.facets.language); 
+		keywordExtractor.addDocument(document.removeUnnecessaryChars(), d.id, d.facets.language);
+	});
+
+	//  Extract collection and document keywords
+	keywordExtractor.processCollection();
+
+	data.forEach(function(d, i) {
+		d.keywords = keywordExtractor.listDocumentKeywords(i);
+	});
+
+	data.keywords = keywordExtractor.getCollectionKeywords();
+	data.keywordsDict = keywordExtractor.getCollectionKeywordsDictionary();
+}
+
 
 
 

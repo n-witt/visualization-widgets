@@ -10,6 +10,7 @@ function UrankVis(root, visTemplate, EEXCESSobj) {
 	var urankCtrl;
 	var receivedData_, mappingCombination_, iWidth_, iHeight_;
 	var extendedReceivedData = [];
+	var keywordsDivs = []
 	var exxcessControlsContainer = "#eexcess_controls";
 	var exxcessFixedControls="#eexcess_fixed_controls";
 	
@@ -27,12 +28,69 @@ function UrankVis(root, visTemplate, EEXCESSobj) {
 	var eexcessUrankLiFavIcon = "eexcess-urank-favicon";
 	var indexList = [];
 	var urankIdToIndicesMap = {}; 
+	
+	   var defaultLoadOptions = {
+   	    tagCloud : {
+            module: 'default',      // default || landscape
+            misc: {
+                defaultBlockStyle: false,
+                customScrollBars: false
+            }
+        },
+        contentList: {
+            custom: true,
+            customOptions: {     //  only used when contentListType.custom = true
+                selectors: {
+                	root: "#eexcess_content_list",
+                    ul: eexcessResultList,
+                    liClass: eexcessList,
+                    liTitle: eexcessUrankLiTitle,
+                    liRankingContainer: eexcessUrankLiRankingContainer,
+                    favicon: ".eexcess_fav_icon",
+          
+                },
+                classes: {
+                    liHoverClass: '',
+                    liLightBackgroundClass: eexcessUrankLiLightBg,
+                    liDarkBackgroundClass: eexcessUrankLiDarkBg
+                },
+                misc: {
+                    hideScrollbar: true
+                }
+            },
+        },
+        visCanvas : {
+            customOptions: {               // use only if contentList.custom = true and background in the ranking should match different light and dark background colors
+                lightBackgroundColor: eexcessUrankLiLightBg,
+                darkBackgroundColor: eexcessUrankLiDarkBg
+            },
+            misc: {
+                hideScrollbar: false
+            }
+        },       
+        keywordExtractor: {
+	        extractedData : {
+	        	keywords : {},
+	        	keywordsDict: {}
+	        }, 
+	        extractionEnabled : false
+        }
+   };
+	
+	
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/* Event handlers */
+	
+	
 
 	URANK.Evt = {
-
-		onItemClicked: function(urankId) {
+		onChange: function(rankingData, selecedKeywords){
+			URANK.Internal.highlightslListItems();		
+			if($("#eexcess_keywords_box").find(".urank-tagbox-tag").length == 0) {
+	          	URANK.Internal.createVisCanvasBackground();
+        	}
+		},
+		onItemClicked: function(urankId, e) {
 			// URANK.Internal.readjustUrankList();
 			var stackedChartPrefix = "#urank-ranking-stackedbar-";
 			if (!( urankId in urankIdToIndicesMap)) {
@@ -43,8 +101,8 @@ function UrankVis(root, visTemplate, EEXCESSobj) {
 			var object = receivedData_[index];
 			var stackedChartId = stackedChartPrefix + urankId;
 			var listId = "#data-pos-" + index;
-
-			if (event.ctrlKey) {
+			e = e ? e : event; 
+			if (e.ctrlKey) {
 				FilterHandler.singleItemSelected(object, true);
 			} else {
 				FilterHandler.singleItemSelected(object, false);
@@ -96,47 +154,16 @@ function UrankVis(root, visTemplate, EEXCESSobj) {
         onKeywordHintClick: function(index){
           //	URANK.Internal.readjustUrankList(); 
         },
-        onTagDeleted: function(index){
-        	URANK.Internal.readjustUrankList();
-        	if($("#eexcess_keywords_box").find(".urank-tagbox-tag").length == 0) {
-        		/*var rankingModel = new RankingModel();
-        		
-	        	var selectedKeywords = selectedKeywords;
-	            var selectedId = STR_UNDEFINED;
-	
-	            var rankingData = _this.rankingModel.update(_this.selectedKeywords, _this.rankingMode).getRanking();
-	            var status = rankingModel.getStatus();
-	            contentList.update(rankingData, status, _this.selectedKeywords, _this.queryTermColorScale);
-	            visCanvas.update(rankingModel, _this.queryTermColorScale, contentList.getListHeight());
-	            docViewer.clear();
-	            tagCloud.clearEffects();
-	
-	            s.onChange.call(this, rankingData, _this.selectedKeywords, status);  */
+		onTagDeleted: function(index) {
+			URANK.Internal.readjustUrankList();
+			URANK.Internal.setCurrentFilterKeywords(); 
+		},
 
-        	} 
-        	setTimeout(function() {
-        		$('#urank_canvas_inner div.urank-hidden-scrollbar-inner').css({"margin-right" : "0px"});
-        		if($('#urank_canvas_inner div.urank-viscanvas-container').height() <= $("#urank_canvas_inner").height() ) {
-        			$('#urank_canvas_inner div.urank-hidden-scrollbar-inner').css({"margin-right" : "-100px"});
-        		} 
- 		
-			}, 1000);
-          	
-        },
-        onTagDropped: function(index, queryTermColor){
-                URANK.Internal.readjustUrankList();
-        	$('#urank_canvas_inner div.urank-hidden-scrollbar-inner').css({"margin-right" : "-100px"});
-        	URANK.Internal.readjustUrankList();
-        	setTimeout(function() {
-        		$('#urank_canvas_inner div.urank-hidden-scrollbar-inner').css({"margin-right" : "0px"});
-        		if($('#urank_canvas_inner div.urank-viscanvas-container').height() <= $("#urank_canvas_inner").height() ) {
-        			$('#urank_canvas_inner div.urank-hidden-scrollbar-inner').css({"margin-right" : "-100px"});
-        		} 
- 		
-			}, 1000);
-       
-     
-        },
+
+		onTagDropped: function(index, queryTermColor) {
+			URANK.Internal.setCurrentFilterKeywords(); 
+		},
+
         onTagInBoxMouseEnter: function(index){
         	// URANK.Internal.readjustUrankList();
        
@@ -157,8 +184,19 @@ function UrankVis(root, visTemplate, EEXCESSobj) {
         },
         onRankByMaximumScore: function(){
          	//	URANK.Internal.readjustUrankList(); 
+        },
+        onFaviconClicked: function(id, event){
+         	if (!( id in urankIdToIndicesMap)) {
+				return;
+			}
+			var index = urankIdToIndicesMap[id];
+			var object = receivedData_[index];
+			Vis.faviconClicked(object, index, event); 
         }
-		
+        
+        
+        
+
 	};
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -171,6 +209,7 @@ function UrankVis(root, visTemplate, EEXCESSobj) {
 		visCanvasRoot : '#urank_canvas_inner',
 		docViewerRoot : '',
 		style : 'custom',
+		onChange: URANK.Evt.onChange,
 		onItemClicked: URANK.Evt.onItemClicked,
         onItemMouseEnter: URANK.Evt.onItemMouseEnter,
         onItemMouseLeave: URANK.Evt.onItemMouseLeave,
@@ -193,47 +232,6 @@ function UrankVis(root, visTemplate, EEXCESSobj) {
         onRankByMaximumScore:URANK.Evt.onRankByMaximumScore
 		
 	};
-
-  
-   var defaultLoadOptions = {
-   	    tagCloud : {
-            module: 'default',      // default || landscape
-            misc: {
-                defaultBlockStyle: false,
-                customScrollBars: false
-            }
-        },
-        contentList: {
-            custom: true,
-            customOptions: {     //  only used when contentListType.custom = true
-                selectors: {
-                	root: "#eexcess_content_list",
-                    ul: eexcessResultList,
-                    liClass: eexcessList,
-                    liTitle: eexcessUrankLiTitle,
-                    liRankingContainer: eexcessUrankLiRankingContainer,
-          
-                },
-                classes: {
-                    liHoverClass: '',
-                    liLightBackgroundClass: eexcessUrankLiLightBg,
-                    liDarkBackgroundClass: eexcessUrankLiDarkBg
-                },
-                misc: {
-                    hideScrollbar: true
-                }
-            },
-        },
-        visCanvas : {
-            customOptions: {               // use only if contentList.custom = true and background in the ranking should match different light and dark background colors
-                lightBackgroundColor: eexcessUrankLiLightBg,
-                darkBackgroundColor: eexcessUrankLiDarkBg
-            },
-        }
-   };
-
-    
-
 
 	var init = function(urankController) {
 		$('#btn_reset').click(urankController.reset);
@@ -262,22 +260,13 @@ function UrankVis(root, visTemplate, EEXCESSobj) {
 		},
 
 		readjustUrankList : function() {
-			setTimeout(function() {
+			//setTimeout(function() {
 				if (Object.keys(urankIdToIndicesMap).length == 0) {
 					URANK.Internal.storeInitalUrankItem();
 				}
 				URANK.Internal.highlightslListItems();
-				URANK.Internal.rebuildUrankListEvents();
-			}, 1000);
+			// }, 1000);
 		},
-
-		updateController : function() {
-			options.tagCloud = landscapeTagCloud;
-			if (drawUrankTagCloud) {
-				options.tagCloud = wordTagCloud;
-			}
-			urankCtrl = new UrankController(options);
-		}, 
 		
 		storeInitalUrankItem: function() {
 			$(eexcessList).each(function(i, li){
@@ -319,28 +308,57 @@ function UrankVis(root, visTemplate, EEXCESSobj) {
 	
 		},
 		
-		rebuildUrankListEvents : function() {
-			
 
-			$(eexcessList).each(function(i, li){
-				$li = $(li)
-		 		var id =$li.attr("id");  
-		 		var urankId = $li.attr("urank-id");		 
-		 		var index = id.split("data-pos-")[1];
-				var object = receivedData_[index];
-				
-				// rebuild on fav click event  
-				//-------------------------------------------------
-		 		var favIconsList =  $li.find(".eexcess_fav_icon"); 		 		
-		 		if(favIconsList.length> 0) {
-		 			d3.select(favIconsList[0]).on("click", function(event) { 
-		 				Vis.faviconClicked(object, index); 
-		 			})
-		 		}
-		 		//-------------------------------------------------
-			}) 
+		setCurrentFilterKeywords : function() {
+			var values = []
+			var colorList = []
+			$('#eexcess_keywords_box').find('.urank-tagbox-tag').each(function(i, element) {
+				// var i = $(element).attr('tag-pos');
+				var keyword = 	$(element).clone().children().remove().end().text();
+				var bgColor = $(element).css("background-color");
+				var digits = /(.*?)rgb\((\d+), (\d+), (\d+)\)/.exec(bgColor);
 
-		}	
+				var red = parseInt(digits[2]);
+				var green = parseInt(digits[3]);
+				var blue = parseInt(digits[4]);
+
+				var rgb = blue | (green << 8) | (red << 16);
+				var color = digits[1] + '#' + rgb.toString(16);
+				//var gradient = getGradientString(color);
+				colorList.push(color); 
+				values.push(keyword)
+				/*if (i < keywordsDivs.length) {
+					var divElement = $('<div>').append(keywordsDivs[i]);
+					$(divElement).children().first().css({
+						"background" : gradient,
+						"border-color" : color,
+						"border-width" : "1px",
+						"border-style" : "solid"
+					})
+					values.push($(divElement).html())
+				}*/
+			});
+			if(values.length == 0) {
+				values = null; 
+			}
+			FilterHandler.setInputData('keyword', {"colors" : colorList}); //Also OBJECT z.B.: ['red', 'blue', ...]
+			FilterHandler.setCurrentFilterKeywords(null, values);
+		},
+
+
+		createVisCanvasBackground : function () {
+			var visCanvas = $("#urank_canvas_inner").find(".urank-viscanvas-container"); 
+			var list = visCanvas.append('<ul class="urank-list-ul-default"></ul>').find('ul');
+			for (var i = 0; i < receivedData_.length; i++) {
+				if( i % 2 == 0) {
+					list.append('<li style="background:#eee; height:47px;"></li>');
+				}
+				else {
+					list.append('<li style="background:#ddd; height:47px;"></li>');
+				}
+			    
+			}	
+		}
 		
 		
 	};
@@ -357,38 +375,56 @@ function UrankVis(root, visTemplate, EEXCESSobj) {
 	 *
 	 * ***************************************************************************************************************/
 	URANK.Render.draw = function(receivedData, mappingCombination, iWidth, iHeight) {
-
-		// receivedData = urankDemoData.data;
-	
+		urankIdToIndicesMap = {}
 		URANK.Internal.setTagCloudOption(); 
 		receivedData_ = JSON.parse(JSON.stringify(receivedData));
 		mappingCombination_ = mappingCombination;  
 		iWidth_ = iWidth;
 		iHeight_ = iHeight; 
+		var keywordExtractorOptions = {
+			minDocFrequency: 1,
+            minRepetitionsInDocument: 2,
+            maxKeywordDistance: 2,
+            minRepetitionsProxKeywords: 2, 
+            multiLingualEnabled : true
+		};
+	    var keywordExtractor = new KeywordExtractor(keywordExtractorOptions);
 		var indexCounter = 0;
-		receivedData.forEach(function(d) {
+		receivedData.forEach(function(d, i) {
+			d.index = i;
 			d.id = d.id.replace(/([^A-Za-z0-9[\]{}_.:-])\s?/g, '_');
 			if (d.description == null || d.description == 'undefined') {
 				d.description = "";
 			}
 		    d.title = d.title.clean();
-			d.description =d.description.clean();
-			d.index = indexCounter++;
+			d.description = d.description.clean();
+	        var document = (d.description) ? d.title +'. '+ d.description : d.title;
+	        d.facets.language = d.facets.language ? d.facets.language : "en"
+	       	keywordExtractor.addDocument(document.removeUnnecessaryChars(), d.id, d.facets.language );
 		});
-			$('#eexcess_main_panel').addClass('urank');
-	
-			$('#eexcess_vis_panel').prepend('<div id="eexcess_vis_panel_controls" class="clearfix">' + ' <div id="eexcess_keywords_box" class="ui-droppable"></div>' + '</div>', '');
-			$('#eexcess_canvas').append('<div class="eexcess_result_list_outer"></div><div id="urank_canvas_inner"></div>');
-			var keywordContainerHeight = $("#eexcess_canvas").height()-10; 
-			$('#eexcess_vis_panel').append('<div id="eexcess_keywords_container" style="height:'+keywordContainerHeight+'px"></div>');
+		
+	    //  Extract collection and document keywords
+	    keywordExtractor.processCollection();
+		
+		receivedData.forEach(function(d, i){
+	    	d.keywords = keywordExtractor.listDocumentKeywords(i);
+	    });
+		
+		defaultLoadOptions.keywordExtractor.keywords = keywordExtractor.getCollectionKeywords().slice(0, 50);
+	    defaultLoadOptions.keywordExtractor.keywordsDict = keywordExtractor.getCollectionKeywordsDictionary();
+		
+		$('#eexcess_main_panel').addClass('urank');	
+		$('#eexcess_vis_panel').prepend('<div id="eexcess_vis_panel_controls" class="clearfix">' + ' <div id="eexcess_keywords_box" class="ui-droppable"></div>' + '</div>', '');
+		$('#eexcess_canvas').append('<div class="eexcess_result_list_outer"></div><div id="urank_canvas_inner"></div>');
+		var keywordContainerHeight = $("#eexcess_canvas").height()-10; 
+		$('#eexcess_vis_panel').append('<div id="eexcess_keywords_container" style="height:'+keywordContainerHeight+'px"></div>');
 			
 		receivedData_ = receivedData; 
 		urankCtrl.loadData(JSON.stringify(receivedData), defaultLoadOptions);
+		URANK.Internal.createVisCanvasBackground();
 		URANK.Internal.readjustUrankList(); 
 		$('#eexcess_content_list > .urank-hidden-scrollbar-inner').append('<div style="height:79px;"></div>');
-		// /*make urank list and ranking scrollbar*/
-
-
+	
 	};
 
 	URANK.Render.deleteCurrentSelect = function() {
@@ -421,9 +457,15 @@ function UrankVis(root, visTemplate, EEXCESSobj) {
 		draw : function(receivedData, mappingCombination, iWidth, iHeight) {
 			URANK.Render.draw(receivedData, mappingCombination, iWidth, iHeight);
 		},
+        
 		reset : function() {
 			URANK.Render.reset();
 		},
+        
+        resetFilter: function () {
+			URANK.Render.reset();
+        },
+            
 		highlightItems : function(indexArray) {
 			URANK.Render.highlightItems(indexArray);
 		}
