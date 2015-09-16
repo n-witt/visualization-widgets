@@ -101,8 +101,8 @@ define(['jquery', 'settings', 'jquery_ui', 'jquery_raty'], function($, settings,
          $widgets.list.append($('<li>no results</li>'));
           return;
       }
-      if(Array.isArray(data.results.results)){
-         $widgets.list.attr('data-total', data.results.length);
+      if(Array.isArray(data.result)){
+         $widgets.list.attr('data-total', data.result.length);
       } else {
          throw new Error("Invalid result data received");
       }
@@ -111,7 +111,7 @@ define(['jquery', 'settings', 'jquery_ui', 'jquery_raty'], function($, settings,
       settings.itemsShown = Math.floor(height / 50);
 
       var _pagination = $('<div class="pagination"></div>');
-      var pages = (Math.ceil(data.results.length / settings.itemsShown) > 10) ? 10 : Math.ceil(data.results.length / settings.itemsShown);
+      var pages = (Math.ceil(data.result.length / settings.itemsShown) > 10) ? 10 : Math.ceil(data.result.length / settings.itemsShown);
 
       if (pages > 1) {
          for (var i = 1; i <= pages; i++) {
@@ -128,7 +128,7 @@ define(['jquery', 'settings', 'jquery_ui', 'jquery_raty'], function($, settings,
 
           settings.hostTag.append(_pagination);
       }
-      moreResults(data.results.results);
+      moreResults(data.result);
    };
 
    /**
