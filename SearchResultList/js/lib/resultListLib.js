@@ -95,23 +95,23 @@ define(['jquery', 'settings', 'jquery_ui', 'jquery_raty'], function($, settings,
       $('#result_gallery').remove();
       $widgets.error.hide();
       $widgets.loader.hide();
-      data = data || null;
-      if(data) {
-          data['results'] = data.result;
-      }
       $widgets.list.empty();
 
       if (data === null || data.totalResults === 0 || data.totalResults === '0') {
          $widgets.list.append($('<li>no results</li>'));
           return;
       }
-      $widgets.list.attr('data-total', data.results.length);
+      if(Array.isArray(data.result)){
+         $widgets.list.attr('data-total', data.result.length);
+      } else {
+         throw new Error("Invalid result data received");
+      }
 
       var height = (window.innerHeight || document.body.clientHeight) - 120;
       settings.itemsShown = Math.floor(height / 50);
 
       var _pagination = $('<div class="pagination"></div>');
-      var pages = (Math.ceil(data.results.length / settings.itemsShown) > 10) ? 10 : Math.ceil(data.results.length / settings.itemsShown);
+      var pages = (Math.ceil(data.result.length / settings.itemsShown) > 10) ? 10 : Math.ceil(data.result.length / settings.itemsShown);
 
       if (pages > 1) {
          for (var i = 1; i <= pages; i++) {
@@ -128,7 +128,7 @@ define(['jquery', 'settings', 'jquery_ui', 'jquery_raty'], function($, settings,
 
           settings.hostTag.append(_pagination);
       }
-      moreResults(data.results);
+      moreResults(data.result);
    };
 
    /**
@@ -203,8 +203,33 @@ define(['jquery', 'settings', 'jquery_ui', 'jquery_raty'], function($, settings,
              var shortDescription = shortenDescription(item.description);
              resCt.append($('<p class="result_description">' + shortDescription + '</p>'));
           }
+
           resCt.append($('<p style="clear:both;"></p>'));
 
+         // custom buttons
+         var buttons = JSON.parse(sessionStorage.getItem("Buttons"));
+         if(Array.isArray(buttons)){
+            for(var j=0; j<buttons.length; j++){
+                var button = $(buttons[j].html),
+                event = buttons[j].responseEvent;
+                // don't insert the imageCitation button when there is no image
+                if(event == "eexcess.imageCitationRequest" && !items[i].hasOwnProperty("previewImage")){
+                   // don't insert the button
+                } else {
+                    button = button.attr("data-documentsMetadata", JSON.stringify(item));
+                    button.click(function(){
+                        var documentsMetadata = JSON.parse($(this).attr("data-documentsMetadata"));
+                        event = $(this).find("img").attr("data-method");
+                        window.top.postMessage({
+                            event: event,
+                            documentsMetadata: documentsMetadata
+                        }, '*');
+                    });
+                    li.prepend(button);
+                }
+      
+            }
+         }
       }
       settings.hostTag.find('.eexcess_previewIMG').error(function() {
          $(this).unbind("error").attr("src", settings.pathToMedia + 'no-img.png');
@@ -249,7 +274,59 @@ define(['jquery', 'settings', 'jquery_ui', 'jquery_raty'], function($, settings,
       });
    };
 
-   /*
+   /**
+    * Inserts a new HTML tag + code into
+    */
+   function registerButtonPerResult(data){
+      // checking input data
+      if(data instanceof Object){
+         if(!(data.hasOwnProperty("html") &&
+            data.hasOwnProperty("responseEvent"))){
+
+            throw new Error("Isufficient parameter." +
+               "The parameters 'html' and 'responseEvent' are required");
+         }
+         if(typeof data.responseEvent !== "string"){
+            throw new Error("Invalid parameter types passed");
+         }
+         try{
+            $(data.html);
+         } catch(e){
+            throw new Error("Syntax error. Invalid HTML passed");
+         }
+      }
+
+      var alreadyRegistered = false;
+      var buttons = sessionStorage.getItem("Buttons");
+      if(buttons !== null){
+         buttons = JSON.parse(buttons);
+         if(Array.isArray(buttons)){
+            for(var i=0; i<buttons.length; i++){
+               if(buttons[i].responseEvent == data.responseEvent){
+                  alreadyRegistered = true;
+               }
+            }
+         } else {
+            throw new Error("Invalid data in SessionCache");
+         }
+      }
+
+      if(alreadyRegistered){
+         console.warn("Registering button failed. A button with the response " + 
+            "Event '" + data.responseEvent + "' is already registered.");
+      } else {
+         if(buttons == null){
+            buttons = [];
+         }
+         buttons.push({
+            html: data.html,
+            responseEvent: data.responseEvent
+         });
+         sessionStorage.setItem("Buttons", JSON.stringify(buttons));
+      }
+   }
+
+   /**
     * Makes some objects publicly available
     */
    return {
@@ -257,6 +334,7 @@ define(['jquery', 'settings', 'jquery_ui', 'jquery_raty'], function($, settings,
       showResults: showResults,
       showLoadingScreen: showLoadingScreen,
       showError: showError,
+      registerButtonPerResult: registerButtonPerResult,
       rating:rating
    };
 });
