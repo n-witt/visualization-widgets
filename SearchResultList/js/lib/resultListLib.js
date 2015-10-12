@@ -158,11 +158,6 @@ define(['jquery', 'settings', 'jquery_ui', 'jquery_raty'], function($, settings,
              li.hide();
          }
 
-         // rating
-         var raty = $('<div class="eexcess_raty"  data-uri="' + item.documentBadge.uri + '" data-pos="' + pos + '"></div');
-         rating(raty, item.documentBadge.uri, item.rating);
-         li.append(raty);
-
          var containerL = $('<div class="resCtL"></div>');
          li.append(containerL);
          containerL.append(link(item.documentBadge.uri, img, '<img class="eexcess_previewIMG" src="' + img + '" />'));
@@ -177,26 +172,6 @@ define(['jquery', 'settings', 'jquery_ui', 'jquery_raty'], function($, settings,
             var providerName = item.documentBadge.provider.charAt(0).toUpperCase() + item.documentBadge.provider.slice(1);
             containerL.append($('<img alt="provided by ' + providerName + '" title="provided by ' + providerName + '" src="' + settings.pathToMedia + 'icons/' + item.documentBadge.provider + '-favicon.ico" class="partner_icon" />'));
          }
-
-         // show link
-         var linkCopy = $('<a href="" title="show URL of the resource"><img src="' + settings.pathToMedia + 'icons/link.png" /></a>');
-         linkCopy.click(function(evt) {
-            evt.preventDefault();
-            $widgets.dialog.children('p').text(this);
-            var at = 'center top+' + evt.pageY;
-            $widgets.dialog.dialog({
-               title: 'URL of the resource',
-               height: 130,
-               position: {my: "center", at: at}
-             });
-             // select the link
-             var selection = window.getSelection();
-             var range = document.createRange();
-             range.selectNodeContents($widgets.dialog.children('p').get()[0]);
-             selection.removeAllRanges();
-             selection.addRange(range);
-          }.bind(item.documentBadge.uri));
-          containerL.append(linkCopy);
 
           // description
           if (typeof item.description !== 'undefined' && item.description !== '') {
@@ -251,27 +226,6 @@ define(['jquery', 'settings', 'jquery_ui', 'jquery_raty'], function($, settings,
          firstPart += "...";
       }
       return firstPart;
-   };
-
-   /*
-    * Binds a rating UI widget the object that is passed in the 'element' parameter
-    */
-   function rating(element, uri, score) {
-      element.raty({
-         score: score,
-         path: settings.pathToLibs + 'rating/img',
-         number: 2,
-         width: false,
-         iconRange: [
-            {range: 1, on: 'thumb_down-on.png', off: 'thumb_down-off.png'},
-            {range: 2, on: 'thumb_up-on.png', off: 'thumb_up-off.png'}
-         ],
-         hints: ['bad', 'good'],
-         single: true,
-         click: function(score, evt) {
-            settings.ratingHandler(this.uri, score, this.element.data('pos'));
-         }.bind({uri: uri, element: element})
-      });
    };
 
    /**
@@ -335,6 +289,5 @@ define(['jquery', 'settings', 'jquery_ui', 'jquery_raty'], function($, settings,
       showLoadingScreen: showLoadingScreen,
       showError: showError,
       registerButtonPerResult: registerButtonPerResult,
-      rating:rating
    };
 });

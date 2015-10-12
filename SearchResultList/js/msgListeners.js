@@ -10,8 +10,6 @@ define(['resultListLib'], function(helper){
             helper.showLoadingScreen();
          } else if (e.data.event === 'eexcess.error') {
              helper.showError(e.data.data);
-         } else if (e.data.event === 'eexcess.rating') {
-             helper.rating($('.eexcess_raty[data-uri="' + e.data.data.uri + '"]'), e.data.data.uri, e.data.data.score);
          } else if (e.data.event === 'eexcess.registerButton.perResult') {
             helper.registerButtonPerResult(e.data);
          }
