@@ -24,6 +24,8 @@ define(['jquery', 'settings', 'jquery_ui', 'jquery_raty'], function($, settings,
       $widgets.loader.hide();
       if (errorData === 'timeout') {
          $widgets.error.text('Sorry, the server takes too long to respond. Please try again later');
+      } else if(errorData === 'noResults'){
+         $widgets.error.text('No results');
       } else {
          $widgets.error.text('Sorry, something went wrong');
       }
@@ -90,6 +92,10 @@ define(['jquery', 'settings', 'jquery_ui', 'jquery_raty'], function($, settings,
     * @param data: the results to be displayed
     */
    function showResults(data) {
+      if(data.result.length == 0){
+         showError("noResults");
+         return;
+      }
       $('.eexcess_tabs li.active').removeClass('active');
       $('.eexcess_tabs li').first().addClass('active');
       $('#result_gallery').remove();
