@@ -11,9 +11,12 @@ and open the template in the editor.
         <meta name="viewport" content="width=device-width">
 
         <script type="text/javascript" src="libs/jquery-1.10.2.min.js"></script>
+        <script type="text/javascript" src="libs/jquery-dropdown/jquery.dropdown.min.js"></script>
         <script type="text/javascript" src="libs/jquery-ui/jquery-ui.min.js"></script>
-        <script type="text/javascript" src="libs/lodash.js"></script>
+        <!--<script type="text/javascript" src="libs/lodash.js"></script>-->
+        <script type="text/javascript" src="uRank/modules/tagcloud/landscape/js/libs/underscore.js"></script>
         <link rel="stylesheet" type="text/css" href="libs/jquery-ui/jquery-ui.css" />
+        <link rel="stylesheet" type="text/css" href="libs/jquery-dropdown/jquery.dropdown.min.css" />    
         <link rel="stylesheet" type="text/css" href="libs/leaflet/leaflet.css" />
         <link rel="stylesheet" type="text/css" href="libs/leaflet/markercluster/MarkerCluster.Default.css" />
         <link rel="stylesheet" type="text/css" href="libs/leaflet/markercluster/MarkerCluster.css" />
@@ -65,6 +68,7 @@ and open the template in the editor.
         <script type="text/javascript" src="plugins.js"></script>
         <script type="text/javascript" src="libs/require.js"></script>
         <script type="text/javascript" src="js/filterhandler.js"></script>
+        <script type="text/javascript" src="js/logginghandler.js"></script>
         <script type="text/javascript" src="js/usagecollector.js"></script>
 
         <link rel="stylesheet" type="text/css" href="media/css/eexcess.css">
@@ -101,11 +105,8 @@ and open the template in the editor.
 					<input id="eexcess_deleteBookmark_button" type="button" value="x" title="delete selected bookmark collections" />
                     
                     <a id="eexcess_export_bookmark" type="button" title="export bookmark">↓</a>
-                    <button id="eexcess_import_bookmark_style" type="button" value="" title="import bookmark">↑
-                    </button>
-                    <input id="eexcess_import_bookmark" type="file">
-                    </input>
-                        
+                    <button id="eexcess_import_bookmark_style" type="button" value="" title="import bookmark">↑</button>
+                    <input id="eexcess_import_bookmark" type="file" />                        
 					<br />
 				</div>
 				<ul class="eexcess_result_list">					
@@ -117,49 +118,68 @@ and open the template in the editor.
 				<div id="eexcess_canvas"></div>
 			</div>
 			
-			<div id="eexcess_controls"> 
+			<div id="eexcess_controls">
 				<div id="eexcess_fixed_controls">
-					<div style="text-align: right;">
-						<button id="screenshot" type="button">Screen</button>
-						<button id="globalsettings" type="button" >Settings</button>
-						<button id="eexcess_btnreset" type="button" >Reset</button>
-					</div>
+					<span style="text-align: left; float:left">
+						<input class="controllbutton" id="colorSettings" data-jq-dropdown="#eexcess_controls_mappings" type="button" title="color-mapping"></input>
+						 	 
+					</span>
+					<span style="text-align: left; float:right">
+						<input class="controllbutton" id="screenshot" type="button" title="screenshot"></input>
+						<input class="controllbutton" id="globalsettings" type="button" title="settings"></input>
+						<input class="controllbutton" id="eexcess_btnreset" type="button" title="reset"></input>
+						<input class="controllbutton" id="vis_dashboard_info" type="button" title="dashboard info"></input>
+						<input class="controllbutton" id="vis_dashboard_feedback" type="button" title="feedback" ></input>
 
-					<div id="eexcess_controls_chart" class="eexcess_controls_select" >
-						<span class="eexcess_controls_title">Chart</span>
-						<select id="eexcess_select_chart" ></select>
-					</div>
-				
+					</span>
+					<div id="eexcess_controls_mappings" class="jq-dropdown jq-dropdown-tip jq-dropdown-relative">
+
+				</div>
+
+				<div id="eexcess_controls_chart" class="eexcess_controls_select" >
+					<span class="eexcess_controls_title">Chart</span>
+					<select id="eexcess_select_chart" ></select>
+				</div>
 					<div id="eexcess_controls_mappings" class="eexcess_controls_select"></div>
 					<div id="eexcess_bookmarkselected_container">
-                        <img class="eexcess_fav_icon" id="bookmark_selected_star" title="bookmark selected" src="media/icons/favicon_on.png">
-                        <input id="eexcess_addBookmarkItems_button" type="button" value="bookmark selected" />
+						<input id="eexcess_addBookmarkItems_button" type="button" value="bookmark selected" />
 					</div>
 				</div>
+
                 
-				<div id="eexcess-filtercontainer">
+                <div id="eexcess-chartselection">
                     <h4>Views:</h4>
-                    <div id="filterarea-time" class="filterarea" data-targetchart='timeline'>
+                    <input type="button" class="chartbutton timeline" data-targetchart='timeline'></input>
+                    <input type="button" class="chartbutton geochart" data-targetchart='geochart'></input>
+                    <input type="button" class="chartbutton barchart" data-targetchart='barchart'></input>
+                    <br>
+                    <input type="button" class="chartbutton landscape" data-targetchart='landscape'></input>
+                    <input type="button" class="chartbutton urank" data-targetchart='urank'></input>
+                </div>
+
+				<div id="eexcess-filtercontainer">
+                    <h4>Filters:</h4>
+                    <div id="filterarea-time" class="filterarea" data-filtertype='time'>
                         <header class=''>
                             <h4>Time</h4>
                         </header>
                     </div>
-                    <div id="filterarea-geo" class="filterarea" data-targetchart='geochart'>
+                    <div id="filterarea-geo" class="filterarea" data-filtertype='geo'>
                         <header class=''>
                             <h4>Geo</h4>
                         </header>
                     </div>
-                    <div id="filterarea-category" class="filterarea" data-targetchart='barchart'>
+                    <div id="filterarea-category" class="filterarea" data-filtertype='category'>
                         <header class=''>
                             <h4>Category</h4>
                         </header>
                     </div>
-                    <div id="filterarea-list" class="filterarea" data-targetchart='landscape'>
+                    <div id="filterarea-list" class="filterarea" data-filtertype='list'>
                         <header class=''>
                             <h4>Documents</h4>
                         </header>
                     </div>
-                    <div id="filterarea-keyword" class="filterarea" data-targetchart='urank'>
+                    <div id="filterarea-keyword" class="filterarea" data-filtertype='keyword'>
                         <header class=''>
                             <h4>Keywords</h4>
                         </header>
@@ -167,11 +187,16 @@ and open the template in the editor.
 				</div>
 			</div>
 		</div>
-        
+
         <div id="minimumsize-message">
             <p>This visualization requires a larger screen area.<br>Minimum width 750px and minimum height 200px.</p>
         </div>
-		
+		<div id="vis_feeadback_dialog" title="Your Feedback">
+			<h3>Please provide us your feedback</h3>
+			<textarea id="visDashboardFeedbackContent"></textarea>
+			<input id="sendDashboardFeedbackBtn"type="button" class="" value="Send Feedback"></input>
+
+		</div>
         <script type="text/javascript" src="starter.js"></script>
     </body>
 </html>

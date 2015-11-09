@@ -11,25 +11,61 @@ var FilterHandler = {
     ext: null,
     doShowSingleChartPerType: true,
     Internal: {},
+    visualisationSettings:[],
+    activeFiltersNames: [],
 
     initialize: function (vis, ext, filterRootSelector) {
         FilterHandler.vis = vis;
         FilterHandler.ext = ext;
         FilterHandler.$filterRoot = $(filterRootSelector);
 
-        FilterHandler.$filterRoot.find('.filterarea header').on('click', function (e) {
-            var $area = $(this).closest('.filterarea');
-            if ($(e.target).is('.expand')){                
-                FilterHandler.expandFilterArea($area, !$area.find('.chart-container').hasClass('expanded'));                
-            } else {
-                $("#eexcess_select_chart").val($area.data('targetchart')).change();
-            }
-        });
         FilterHandler.initializeFilterAreas();
-        FilterHandler.chartNameChanged($("#eexcess_select_chart").val());
+        
+        FilterHandler.chartNameChanged($("#eexcess_select_chart").val())     
+    },
+        
+     initializeData: function (orignalData, mapping) {;
+        var selectedColorDimension;
+        var colorMapping = _.filter(mapping, { 'visualattribute': 'color' });
+        if (colorMapping.length > 0)
+            selectedColorDimension = colorMapping[0].facet;
+        
+        var timeSettings = { minYear: undefined, maxYear: undefined };
+        var categorySettings = { dimension: selectedColorDimension, dimensionValues: [] };
+
+        for (var i = 0; i < orignalData.length; i++) {
+            var currentYear = orignalData[i].facets.year;
+            currentYear = getCorrectedYear(currentYear)
+            if ($.isNumeric(currentYear)) {
+                if (timeSettings.minYear == undefined) {
+                    timeSettings.minYear = currentYear;
+                    timeSettings.maxYear = currentYear;
+                }
+                if (timeSettings.minYear > currentYear)
+                    timeSettings.minYear = currentYear;
+                if (timeSettings.maxYear < currentYear)
+                    timeSettings.maxYear = currentYear;
+            }
+            if (!_.includes(categorySettings.dimensionValues, orignalData[i].facets[selectedColorDimension])) {
+                categorySettings.dimensionValues.push(orignalData[i].facets[selectedColorDimension]);
+            }
+        }
+        
+        FilterHandler.reset();
+        FilterHandler.visualisationSettings["time"] = timeSettings;
+        FilterHandler.visualisationSettings["category"] = categorySettings;
     },
     
     initializeFilterAreas: function(){
+        
+        FilterHandler.$filterRoot.find('.filterarea header').on('click', function (e) {
+            var $area = $(this).closest('.filterarea');
+            // if ($(e.target).is('.expand')){                
+                 FilterHandler.expandFilterArea($area, !$area.find('.chart-container').hasClass('expanded'), true);                
+            // } else {
+            //     $("#eexcess_select_chart").val($area.data('targetchart')).change();
+            // }
+        });
         
         FilterHandler.$filterRoot.find('.filterarea').each(function(){
             var $area = $(this);
@@ -40,12 +76,23 @@ var FilterHandler = {
         
         FilterHandler.$filterRoot.find('.filter-remove').on('click', function (e) {
             e.stopPropagation();
-            FilterHandler.removeFilter($(this).closest('.filterarea'));
+            var $filterArea = $(this).closest('.filterarea');
+            var isCurrentFilter = FilterHandler.currentFilter != null && FilterHandler.currentFilter.type == FilterHandler.getTypeOfArea($filterArea);
+            FilterHandler.removeFilter($filterArea);
+            var filterType = $filterArea.attr('data-filtertype');
+            LoggingHandler.log({ action: isCurrentFilter ? "Brush removed" : "Filter removed", component : filterType, widget: 'trash' }); // todo: old / new
         });
         FilterHandler.$filterRoot.find('.filter-keep').on('click', function (e) {
             e.stopPropagation();
-            FilterHandler.makeCurrentPermanent();
+            var filterType = $(this).closest('.filterarea').attr('data-filtertype');
+            FilterHandler.makeCurrentPermanent(filterType);
             $(this).removeClass('active');
+            
+            var filteredDataIds = FilterHandler.mergeFilteredDataIds();
+            var count = 0;
+            if (filteredDataIds != null)
+                count = filteredDataIds.length;
+            LoggingHandler.log({ action: "Filter saved", component : filterType, itemCount: count });
         });
     },
     
@@ -58,11 +105,33 @@ var FilterHandler = {
         FilterHandler.inputData[type] = inputData;
     },
 
-    expandFilterArea: function ($area, doExpand) {
+    expandFilterArea: function ($area, doExpand, isDoneByClick) {
         $area.find('.chart-container').toggleClass('expanded', doExpand);
         $area.find('span.expand')
             .toggleClass('batch-sm-arrow-right', !doExpand)
             .toggleClass('batch-sm-arrow-down', doExpand);
+            
+        if (isDoneByClick)
+            LoggingHandler.log({ action: "Filter " + (doExpand ? "expanded" : "collapsed") + " by User", source : $area.attr('data-filtertype') });
+    },
+    
+    collapseCurrent: function(){
+        if (!FilterHandler.currentFilter)
+            return;
+        var $filterArea = FilterHandler.getFilterArea(FilterHandler.currentFilter.type);
+        FilterHandler.expandFilterArea($filterArea, false, false);
+    },
+    
+    setActiveFilters: function(){
+        var filterTypes = _(FilterHandler.filters).map(function(f){
+            return f.type; 
+            });
+        if (FilterHandler.currentFilter != null)
+            filterTypes.push(FilterHandler.currentFilter.type);
+            
+        FilterHandler.activeFiltersNames = _(filterTypes).uniq();
+        //console.log('filters set: ');
+        //console.log(FilterHandler.activeFiltersNames);
     },
     
     getFilterArea: function (type) {
@@ -79,7 +148,7 @@ var FilterHandler = {
             //$filter.prepend($('<div class="filter-controls"><a href="#" class="filter-keep"><span class="batch-sm-add"></span></a> <a href="#" class="filter-remove"><span class="batch-sm-delete"></span></a></div>'));
 
         var $filterArea = FilterHandler.getFilterArea(type);
-        FilterHandler.expandFilterArea($filterArea, true);
+        FilterHandler.expandFilterArea($filterArea, true, false);
         $filterArea.find('.chart-container').removeClass('no-filter').prepend($filter);
 
         newFilterVis.Object = PluginHandler.getFilterPluginForType(type).Object;
@@ -100,7 +169,7 @@ var FilterHandler = {
     getAllFilters: function (type) {
         var filters = [];
         filters = _(FilterHandler.filters).filter({ 'type': type });
-        if (FilterHandler.currentFilter.type == type)
+        if (FilterHandler.currentFilter != null && FilterHandler.currentFilter.type == type)
             filters.push(FilterHandler.currentFilter);
         
         return filters;
@@ -110,6 +179,7 @@ var FilterHandler = {
         FilterHandler.currentFilter = { type: type, from: null, to: null, dataWithinFilter: [] };
         var $filterArea = FilterHandler.getFilterArea(type);
         $filterArea.find('.filter-keep, .filter-remove').addClass('active');
+        FilterHandler.setActiveFilters();
     },
 
     addEmptyListFilter: function () {
@@ -119,6 +189,7 @@ var FilterHandler = {
         FilterHandler.listFilter = FilterHandler.currentFilter;
         FilterHandler.listFilter.itemsClicked = []; // { data: object, selectionMode: single/add/remove }
         FilterHandler.currentFilter = currentFilterTemp;
+        FilterHandler.setActiveFilters();
         // todo: re-enable
         //// move sort order
         //if (FilterHandler.currentFilter != null)
@@ -201,6 +272,16 @@ var FilterHandler = {
         FilterHandler.refreshFiltervisualisation(FilterHandler.currentFilter.type);
     },
 
+    refreshAll: function () {
+        for (var i=0; i<FilterHandler.filters.length; i++){
+            FilterHandler.refreshFiltervisualisation(FilterHandler.filters[i].type);    
+        }
+        if (FilterHandler.currentFilter != null)
+            FilterHandler.refreshFiltervisualisation(FilterHandler.currentFilter.type);
+        if (FilterHandler.listFilter != null)
+            FilterHandler.refreshListFilter();
+    },
+
     refreshFiltervisualisation: function (type) {
         var filterVisualisation = FilterHandler.getFilterVisualisation(type);
         var filters = FilterHandler.getAllFilters(type);
@@ -208,7 +289,8 @@ var FilterHandler = {
             FilterHandler.vis.getData(),
             FilterHandler.inputData[type],
             filterVisualisation.$container,
-            filters);
+            filters,
+            FilterHandler.visualisationSettings[type]);
 
         FilterHandler.ext.selectItems();
     },
@@ -235,16 +317,22 @@ var FilterHandler = {
         if (FilterHandler.currentFilter == null)
             return;
 
-        FilterHandler.clear(FilterHandler.currentFilter.type);
-        FilterHandler.currentFilter = null;
+        var type = FilterHandler.currentFilter.type;
+        if (!_(FilterHandler.filters).some(function(item){ return item.type == type; })){
+            FilterHandler.clearType(type);
+        } else {
+            FilterHandler.currentFilter = null;
+            FilterHandler.refreshFiltervisualisation(type);
+        }
+        
+        FilterHandler.ext.selectItems();
     },
 
     clearList: function () {
         if (FilterHandler.listFilter == null)
             return;
 
-        FilterHandler.clear(FilterHandler.listFilter.type);
-        FilterHandler.listFilter = null;
+        FilterHandler.clearType(FilterHandler.listFilter.type);
     },
 
     clearListAndRefresh: function () {
@@ -252,7 +340,7 @@ var FilterHandler = {
         FilterHandler.ext.selectItems();
     },
 
-    clear: function (type) {       
+    clearType: function (type) {       
         var filterVisualisation = FilterHandler.getFilterVisualisation(type);
 
         filterVisualisation.Object.finalize(filterVisualisation.$container);
@@ -263,21 +351,39 @@ var FilterHandler = {
         FilterHandler.getFilterArea(type).find('.filter-keep, .filter-remove').removeClass('active');
         
         FilterHandler.filters = _(FilterHandler.filters).filter(function(item){ return item.type != type; });
+        if (FilterHandler.currentFilter != null && FilterHandler.currentFilter.type == type){
+            FilterHandler.currentFilter = null;            
+        }
+        
+        if (type == 'list'){
+            FilterHandler.listFilter = null;
+        }
+        
+        FilterHandler.setActiveFilters();
     },
 
     reset: function () {
         FilterHandler.clearCurrent();
         FilterHandler.clearList();
         for (var i = 0; i < FilterHandler.filters.length; i++) {
-            FilterHandler.clear(FilterHandler.filters[i].type);
+            FilterHandler.clearType(FilterHandler.filters[i].type);
         }
         
         FilterHandler.ext.filterData(null);
     },
 
-    makeCurrentPermanent: function () {
-        if (FilterHandler.currentFilter == null)
+    makeCurrentPermanent: function (type) {        
+        if (type == "list" && FilterHandler.listFilter != null){
+            // user wants to save the listFilter:
+            FilterHandler.filters.push(FilterHandler.listFilter);
+            FilterHandler.listFilter = null;
+            FilterHandler.ext.filterData(FilterHandler.mergeFilteredDataIds());
             return;
+        }
+        
+        if (FilterHandler.currentFilter == null){
+            return;
+        }
 
         // remove all previous filters of this type, as there is only one filter (and one brush) for each type.
         FilterHandler.filters = _(FilterHandler.filters).filter(function(filter){ return filter.type != FilterHandler.currentFilter.type; });        
@@ -286,15 +392,17 @@ var FilterHandler = {
         FilterHandler.ext.filterData(FilterHandler.mergeFilteredDataIds());
     },
 
+    getTypeOfArea: function($filterArea){
+        return $filterArea.attr('id').substring(11); //filterarea- prefix
+    },
+
     removeFilter: function ($filterArea) {        
-        var type = $filterArea.attr('id').substring(11); //filterarea- prefix
-        FilterHandler.clear(type);        
-        
+        var type = FilterHandler.getTypeOfArea($filterArea);
         if (FilterHandler.currentFilter != null && FilterHandler.currentFilter.type == type){
-            FilterHandler.currentFilter = null;
             FilterHandler.ext.redrawChart(); // removes the current brush
         }
         
+        FilterHandler.clearType(type);                    
         FilterHandler.ext.filterData(FilterHandler.filters.length == 0 ? null : FilterHandler.mergeFilteredDataIds());
     },
 

@@ -12,7 +12,7 @@ function Settings (chartType){
 Settings.prototype.getDimensions = function( root, iWidth, iHeight ){
 
 		var rootWidth  = $(root).width() - 10;
-		var rootHeight = $(root).height() >= 500 ? 500 : $(root).height();
+		var rootHeight = $(root).height();
 
 		switch( this.chartType ){
 			case "timeline": return getTimelineDimensions( root, iWidth, rootWidth, rootHeight); break;
@@ -33,16 +33,14 @@ Settings.prototype.getDimensions = function( root, iWidth, iHeight ){
 
 function getTimelineDimensions( root, iWidth, rootWidth, rootHeight ){
 
-    var focusMargin = {top: 0, bottom: 100, left: 80, right: 20 };
+    var focusMargin = {top: 0, bottom: 100, left: 50, right: 10 };
 	var focusHeight = rootHeight - focusMargin.top - focusMargin.bottom;
 	var cTop = focusHeight + focusMargin.top + 30;
-	var contextMargin	= {top: cTop, bottom: 20, left: 80, right: 20 };
+	var contextMargin	= {top: cTop, bottom: 20, left: 50, right: 10 };
 	var cHeight = rootHeight - contextMargin.top - contextMargin.bottom;
 	var contextHeight	= cHeight > 0 ? cHeight : 40;
-	//rootHeight - this.contextMargin.top - this.contextMargin.bottom;
 
-	var width = rootWidth - focusMargin.left - 140;//this.focusMargin.right;
-
+	var width = rootWidth - focusMargin.left - 70 - 20; // 70 = Legend width; 20 = margin right
 	var centerOffset = (iWidth/2) - ((width + focusMargin.left + focusMargin.right)/2);
 	var verticalOffset = (rootHeight < 500) ? 20 : ($(root).height() - 500) / 2;
 		
@@ -53,9 +51,9 @@ function getTimelineDimensions( root, iWidth, rootWidth, rootHeight ){
 	
 function getBarchartDimensions( root, iWidth, rootWidth, rootHeight ){
 		
-	var margin = { top: 50, bottom: 50, left: 80, right: 20 };
+	var margin = { top: 10, bottom: 50, left: 40, right: 0 };
 	var height = rootHeight - margin.top - margin.bottom;
-	var width = rootWidth - margin.left - 140;
+	var width = rootWidth - margin.left ;
 	var centerOffset = (iWidth/2) - ((width + margin.left + margin.right)/2);
 	var verticalOffset = (rootHeight < 500) ? 20 : ($(root).height() - 500) / 2;
 	var delay = 400;
@@ -77,7 +75,7 @@ function getUrankDimensions(root, rootWidth, rootHeight){
 function getLandscapeDimensions(root, iWidth, rootWidth, rootHeight){
 
 	var rootHeight = $(root).height();
-	var legendWidth = 50; 
+	var legendWidth = 60; 
 
 	var margin = { top: 30, bottom: 5, left: 80, right: 20 };
 	var height = rootHeight - margin.top - margin.bottom;
@@ -127,6 +125,9 @@ Settings.prototype.getInitData = function( data, mappings, arg ){
 
 function fixMissingAndMalformattedValues( data ){
     var dataArray = [];
+	if (!data)
+		return dataArray;
+		
     data.forEach(function(d, i){
         var obj = {};
         obj['id'] = d.id;
@@ -137,13 +138,7 @@ function fixMissingAndMalformattedValues( data ){
         obj['facets']['provider'] = d.facets.provider;
         
         var year = d.facets["year"];
-        var check = year.split(/[^\d]/).filter(function(n){if((n >=-9999)&& (n <= 9999))return n;});
-        if(check.length === 0 ){
-           !('unkown'.localeCompare(year)) ? year = new Date().getFullYear().toString()
-                       : year = year.slice(0, 4);
-        } else {
-           year = check[0].toString();
-        }
+        year = getCorrectedYear(year)
         obj['facets']['year'] = parseDate(year);
         obj['facets']['country'] = d.facets.country || "";
         obj['facets']['keywords'] = d.facets.keywords || [];

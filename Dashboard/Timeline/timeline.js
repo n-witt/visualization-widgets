@@ -69,7 +69,7 @@ function Timeline( root, visTemplate ){
 	};
 	
 	//experimental function
-	TIMEVIS.Evt.filterListPerTime = function(minDateInYears,maxDateInYears){
+	TIMEVIS.Evt.filterListPerTime = function(minDateInYears, maxDateInYears){
 		var indicesToHighlight = [];
 		var dataToHighlight = [];
 		var currentYear = 0;
@@ -83,6 +83,7 @@ function Timeline( root, visTemplate ){
 			}
 		});
 		FilterHandler.setCurrentFilterRange('time', dataToHighlight, minDateInYears, maxDateInYears, yAxisChannel);
+        LoggingHandler.log({action: "Brush created", source: "Timeline", component: "Timeline", itemCountOld: data.length, itemCountNew: dataToHighlight.length, value: xAxisChannel + "=" + minDateInYears + "-" + maxDateInYears, nowCount: dataToHighlight.length });
 	}
 	
 	TIMEVIS.Evt.brushended = function(){
@@ -107,7 +108,7 @@ function Timeline( root, visTemplate ){
 	/**
 	 * Zoom zoomed
 	 * */
-	TIMEVIS.Evt.zoomed = function(){
+	TIMEVIS.Evt.zooming = function(){
 		
 		// Define zoom settings
 		var trans = zoom.translate();
@@ -128,9 +129,13 @@ function Timeline( root, visTemplate ){
 	
 		TIMEVIS.Render.redraw();
 		
-		TIMEVIS.Evt.filterListPerTime(brushExtent[0].getFullYear(),brushExtent[1].getFullYear());
-		
+        zoomingDebounce();
 	};
+	TIMEVIS.Evt.zoomingEndDelay = function(){
+		var brushExtent = [x.invert(0), x.invert(width)];
+		TIMEVIS.Evt.filterListPerTime(brushExtent[0].getFullYear(),brushExtent[1].getFullYear());
+	};
+    var zoomingDebounce = _.debounce(TIMEVIS.Evt.zoomingEndDelay, 500);
 	
 	
 	
@@ -145,6 +150,8 @@ function Timeline( root, visTemplate ){
     };
     
     TIMEVIS.openDocument = function( d, index, sender ) {
+        LoggingHandler.documentWindowOpened();
+        LoggingHandler.log({ action: "Item opened", source:"Timeline", itemId: d.id, itemTitle : d.title });
         var win = window.open(d.uri, '_blank');
         win.focus();
     };
@@ -313,7 +320,7 @@ function Timeline( root, visTemplate ){
 	 * */
 	TIMEVIS.Evt.legendClicked = function( legendDatum, legendIndex ){
 		
-		var indicesToHighlight = [];
+		/*var indicesToHighlight = [];
 		var dataToHighlight = [];
 		
 		if( legendDatum.selected === false ){				
@@ -334,40 +341,41 @@ function Timeline( root, visTemplate ){
 		
 		TIMEVIS.Render.highlightNodes( indicesToHighlight, $(this).attr('class') );
 		FilterHandler.setCurrentFilterCategories('category', dataToHighlight, colorChannel, [legendDatum.item]);
+        LoggingHandler.log({action: "Legend clicked", source: "Timeline", component: "Timeline", itemCountOld: data.length, itemCountNew: dataToHighlight.length });
 		
 		if(legendDatum.selected === true){
 			$(this).find('text').css('font-weight', 'bold');
-		}else{
+		} else {
 			FilterHandler.setCurrentFilterCategories('category', null, colorChannel, null);
 		}
 		
 		d3.selectAll('.legend').select("div")
-			.style("border", function(l, i){ if(i == legendIndex && legendDatum.selected) return "0.1em lime solid"; return "none"; });
+			.style("border", function(l, i){ if(i == legendIndex && legendDatum.selected) return "0.1em lime solid"; return "none"; }); */
 		
 	};
 	
 	
 	TIMEVIS.Evt.legendMouseOvered = function(d){
 
-		d3.select(this).select("div")
+		/* d3.select(this).select("div")
 			.style("border", "0.1em yellow solid")
 			.style("width", "1.4em")
 			.style("height", "1.4em");
 		
 		d3.select(this).select("text")
-			.style("font-size", "0.9em");
+			.style("font-size", "0.9em"); */
 	};
 	
 	
 	TIMEVIS.Evt.legendMouseOuted = function(d){
 		
-		d3.select(this).select("div")
+		/*d3.select(this).select("div")
 			.style("border", function(){ if(d.selected) return "0.1em lime solid"; return "none"; })
 			.style("width",  function(){ if(d.selected) return "1.4em"; return "1.5em"; })
 			.style("height", function(){ if(d.selected) return "1.4em"; return "1.5em"; });
 		
 		d3.select(this).select("text")
-			.style("font-size", "0.85em");
+			.style("font-size", "0.85em"); */
 		
 	};
 	
@@ -525,7 +533,7 @@ function Timeline( root, visTemplate ){
 		zoom = d3.behavior.zoom()
 				.x(x)
 				.scaleExtent([1, 10])
-				.on("zoom", TIMEVIS.Evt.zoomed);
+				.on("zoom", TIMEVIS.Evt.zooming);
 		
 		// Call zoom
 		zoom.x(x);
