@@ -7,6 +7,10 @@ define(['jquery', 'settings', 'resultListLib'], function ($, settings, helper) {
          '<li><a href="#">Media</a></li>' + 
          '<li><a href="#">Cultural</a></li>' + 
          '<li><a href="#">Scholarly</li>' + 
+         '<span id="searchQueryReflection" class="searchQueryReflection">' + 
+            'Results on: ' + 
+               '<span id="searchQuery" style="color: #000000"></span>' +
+         '</span>' +
          '</ul>'));
 
    settings.hostTag.append(helper.$widgets.innerContainer);

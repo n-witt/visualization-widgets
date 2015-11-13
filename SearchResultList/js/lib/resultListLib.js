@@ -92,7 +92,13 @@ define(['jquery', 'settings', 'jquery_ui', 'jquery_raty'], function($, settings,
     * @param data: the results to be displayed
     */
    function showResults(data) {
-      if(data.result.length == 0){
+      var searchQuery = $("#searchQuery");
+      searchQuery.hide("fast", function(e){
+         searchQuery.text(data.profile.contextKeywords[0].text);
+         searchQuery.show("fast");
+      });
+
+      if(data.result.length === 0){
          showError("noResults");
          return;
       }
@@ -294,6 +300,6 @@ define(['jquery', 'settings', 'jquery_ui', 'jquery_raty'], function($, settings,
       showResults: showResults,
       showLoadingScreen: showLoadingScreen,
       showError: showError,
-      registerButtonPerResult: registerButtonPerResult,
+      registerButtonPerResult: registerButtonPerResult
    };
 });

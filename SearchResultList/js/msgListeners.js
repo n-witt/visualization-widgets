@@ -6,6 +6,7 @@ define(['resultListLib'], function(helper){
       if (e.data.event) {
          if (e.data.event === 'eexcess.newResults') {
             helper.showResults(e.data.data);
+            window.top.postMessage({event: "eexcess.resultListLoadingComplete"}, '*');
          } else if (e.data.event === 'eexcess.queryTriggered') {
             helper.showLoadingScreen();
          } else if (e.data.event === 'eexcess.error') {
